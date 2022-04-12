@@ -3,6 +3,7 @@
 #### Installation
 ```
 npm install
+```
 
 ## Test
 ```
