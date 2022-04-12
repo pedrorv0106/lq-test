@@ -2,20 +2,26 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // import "hardhat/console.sol";
 
 contract SplitPayment is Ownable {
-    
+    using SafeERC20 for IERC20;
+
     mapping(address => uint) public accounts;
     uint public accountLen;
     // uint 
     mapping (uint => uint) public ethPools;
-    // mapping (uint => mapping(address => uint)) public tokenPools;
     uint public ethPoolLen;
+    mapping (uint => mapping(address => uint)) public tokenPools;
+    uint public tokenPoolLen;
 
     event Deposit(uint indexed pid, address indexed user, uint amount);
     event Withdraw(uint indexed pid, address indexed user, uint amount);
+    event DepositToken(uint indexed pid, address indexed user, address indexed token, uint amount);
+    event WithdrawToken(uint indexed pid, address indexed user, address indexed token, uint amount);
 
     constructor(address[] memory _accounts, uint[] memory _shares) {
         updateAccounts(_accounts, _shares);
@@ -56,13 +62,16 @@ contract SplitPayment is Ownable {
         emit Withdraw(pid, msg.sender, amount);
     }
 
+    function depositToken(address token, uint amount) external {
+        tokenPools[tokenPoolLen ++][token] = amount;
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
-    // function greet() public view returns (string memory) {
-    //     return greeting;
-    // }
+        emit DepositToken(tokenPoolLen ++, msg.sender, token, amount);
+    }
 
-    // function setGreeting(string memory _greeting) public {
-    //     console.log("Changing greeting from '%s' to '%s'", greeting, _greeting);
-    //     greeting = _greeting;
-    // }
+    function withdrawToken(uint pid, address token) external {
+        uint amount = tokenPools[pid][token] * accounts[msg.sender] / 1e8;
+        IERC20(token).safeTransfer(msg.sender, amount);
+        emit WithdrawToken(pid, msg.sender, token, amount);
+    }
 }
