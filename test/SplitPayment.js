@@ -32,17 +32,45 @@ describe("SplitPayment", function () {
   })
 
   it("should withdraw correct amount of eth to accounts", async function () {
-    await splitPayment.deposit({value: ethers.utils.parseEther("1.0")})
+    await splitPayment.deposit(60 * 60 * 24, {value: ethers.utils.parseEther("1.0")})
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24]);
+    await ethers.provider.send('evm_mine');
     await expect(await splitPayment.connect(alice).withdraw(0)).to.changeEtherBalance(alice, ethers.utils.parseEther("0.3"))
     await expect(await splitPayment.connect(bob).withdraw(0)).to.changeEtherBalance(bob, ethers.utils.parseEther("0.7"))
   })
 
+  it("should withdraw correct amount of eth to accounts - 2", async function () {
+    await splitPayment.deposit(60 * 60 * 24, {value: ethers.utils.parseEther("1.0")})
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 12])
+    await ethers.provider.send('evm_mine')
+    const aliceBalance = await ethers.provider.getBalance(alice.address)
+    await splitPayment.connect(alice).withdraw(0)
+    expect((await ethers.provider.getBalance(alice.address)).sub(aliceBalance)).to.be.within(ethers.utils.parseEther("0.149"), ethers.utils.parseEther("0.151"))
+
+    const bobBalance = await ethers.provider.getBalance(bob.address)
+    await splitPayment.connect(bob).withdraw(0)
+    expect((await ethers.provider.getBalance(bob.address)).sub(bobBalance)).to.be.within(ethers.utils.parseEther("0.349"), ethers.utils.parseEther("0.351"))
+  })
+
   it("should withdraw correct amount of token to accounts", async function () {
     await uni.connect(carol).approve(splitPayment.address, ethers.utils.parseEther("1"))
-    await splitPayment.connect(carol).depositToken(uni.address, ethers.utils.parseEther("1"))
+    await splitPayment.connect(carol).depositToken(uni.address, ethers.utils.parseEther("1"), 60 * 60 * 24)
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 24]);
+    await ethers.provider.send('evm_mine');
     await splitPayment.connect(alice).withdrawToken(0, uni.address)
     expect(await uni.balanceOf(alice.address)).to.equal(ethers.utils.parseEther("0.3"))
     await splitPayment.connect(bob).withdrawToken(0, uni.address)
     expect(await uni.balanceOf(bob.address)).to.equal(ethers.utils.parseEther("0.7"))
+  })
+
+  it("should withdraw correct amount of token to accounts - 2", async function () {
+    await uni.connect(carol).approve(splitPayment.address, ethers.utils.parseEther("1"))
+    await splitPayment.connect(carol).depositToken(uni.address, ethers.utils.parseEther("1"), 60 * 60 * 24)
+    await ethers.provider.send('evm_increaseTime', [60 * 60 * 12]);
+    await ethers.provider.send('evm_mine');
+    await splitPayment.connect(alice).withdrawToken(0, uni.address)
+    expect(await uni.balanceOf(alice.address)).to.be.within(ethers.utils.parseEther("0.149"), ethers.utils.parseEther("0.151"))
+    await splitPayment.connect(bob).withdrawToken(0, uni.address)
+    expect(await uni.balanceOf(bob.address)).to.be.within(ethers.utils.parseEther("0.349"), ethers.utils.parseEther("0.351"))
   })
 });
